@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Code Editor with Run Button</title>
+  <title>Secure Code Editor with Web Worker</title>
 
   <!-- Include CodeMirror CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
@@ -16,14 +16,14 @@
   
   <!-- Include additional CodeMirror modes (optional) for different languages -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
 </head>
 <body>
 
-  <h1>Code Editor with Run Button and Validation</h1>
+  <h1>Secure Code Editor with Web Worker</h1>
   
   <!-- Code Editor -->
   <textarea id="editor">
+// Example code:
 let x = 5;
 let y = 6;
 let z = x + y;
@@ -43,8 +43,42 @@ console.log(z);
     </div>
   </div>
   
-  <!-- Include custom JavaScript for initializing the CodeMirror editor and run functionality -->
-  <script>
+  <!-- Worker Script -->
+  <script type="text/javascript">
+    // Create a blob for the worker script
+    const workerBlob = new Blob([`
+      onmessage = function(e) {
+        const code = e.data.code;
+        const expectedOutput = e.data.expectedOutput;
+        const response = { output: '', error: null, validation: '' };
+
+        try {
+          // Override console.log
+          const log = [];
+          console.log = (msg) => log.push(msg);
+
+          // Run the code
+          eval(code);
+          response.output = log.join('\\n');
+
+          // Validation
+          const z = eval(code.replace(/console\\.log\\(.*\\)/, 'z'));
+          if (z === expectedOutput) {
+            response.validation = 'Correct output: ' + z;
+          } else {
+            response.validation = 'Incorrect output. Expected: ' + expectedOutput + ', got: ' + z;
+          }
+        } catch (err) {
+          response.error = err.message;
+        }
+
+        postMessage(response);
+      };
+    `], { type: 'application/javascript' });
+
+    const workerUrl = URL.createObjectURL(workerBlob);
+    const worker = new Worker(workerUrl);
+
     // Initialize CodeMirror
     var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
       lineNumbers: true,
@@ -56,52 +90,29 @@ console.log(z);
       indentWithTabs: false
     });
 
-    // Capture console.log output and redirect it to the output area
-    (function() {
-      var originalLog = console.log;
-      console.log = function(message) {
-        document.getElementById("consoleOutput").textContent += message + "\n";
-        originalLog.apply(console, arguments);
-      };
-    })();
-
     // Run code when button is clicked
     document.getElementById("runButton").addEventListener("click", function() {
-      var code = editor.getValue(); // Get the code from the editor
-      var validationMessage = '';
+      const code = editor.getValue(); // Get the code from the editor
+      const expectedResult = 11; // Expected output for validation
 
-      try {
-        // Clear previous output and validation
-        document.getElementById("consoleOutput").textContent = '';
-        document.getElementById("validationResult").textContent = '';
+      // Clear previous output and validation
+      document.getElementById("consoleOutput").textContent = '';
+      document.getElementById("validationResult").textContent = '';
 
-        // Execute JavaScript code using eval
-        eval(code);
+      // Send code to the Web Worker
+      worker.postMessage({ code: code, expectedOutput: expectedResult });
 
-        // Validation check
-        let expectedResult = 11; // Expected output (x + y)
-        let actualResult = eval(code.replace('console.log(z)', 'z')); // Execute the expression only
+      // Handle Web Worker response
+      worker.onmessage = function(e) {
+        const { output, error, validation } = e.data;
 
-        // Check if output is correct
-        if (actualResult === expectedResult) {
-          validationMessage += "Correct output: " + actualResult + "\n";
+        if (error) {
+          document.getElementById("consoleOutput").textContent = "Error: " + error;
         } else {
-          validationMessage += "Incorrect output. Expected: " + expectedResult + ", got: " + actualResult + "\n";
+          document.getElementById("consoleOutput").textContent = output;
+          document.getElementById("validationResult").textContent = validation;
         }
-
-        // Check if variables x and y are used
-        if (code.includes('x') && code.includes('y')) {
-          validationMessage += "Variables x and y are used correctly.\n";
-        } else {
-          validationMessage += "Variables x and y are not used correctly.\n";
-        }
-
-        // Display the validation result
-        document.getElementById("validationResult").textContent = validationMessage;
-      } catch (error) {
-        // If an error occurs, display the error message
-        document.getElementById("consoleOutput").textContent = "Error: " + error.message;
-      }
+      };
     });
   </script>
 
