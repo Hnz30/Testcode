@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Editor with Run Button</title>
+
+  <!-- Include CodeMirror CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+  
+  <!-- Include CodeMirror theme (optional) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css">
+  
+  <!-- Include CodeMirror JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+  
+  <!-- Include additional CodeMirror modes (optional) for different languages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+</head>
+<body>
+
+  <h1>Code Editor with Run Button and Validation</h1>
+  
+  <!-- Code Editor -->
+  <textarea id="editor">
+let x = 5;
+let y = 6;
+let z = x + y;
+console.log(z);
+  </textarea>
+
+  <!-- Run Button -->
+  <button id="runButton">Run Code</button>
+
+  <!-- Output Section -->
+  <div id="output" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border: 1px solid #ddd;">
+    <strong>Output:</strong>
+    <pre id="consoleOutput"></pre>
+    <div id="validationOutput" style="margin-top: 10px; padding: 10px; background: #e0f7fa; border: 1px solid #00acc1;">
+      <strong>Validation:</strong>
+      <pre id="validationResult"></pre>
+    </div>
+  </div>
+  
+  <!-- Include custom JavaScript for initializing the CodeMirror editor and run functionality -->
+  <script>
+    // Initialize CodeMirror
+    var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+      lineNumbers: true,
+      mode: "javascript", // Default to JavaScript
+      theme: "dracula", // Theme
+      autoCloseBrackets: true,
+      matchBrackets: true,
+      indentUnit: 2,
+      indentWithTabs: false
+    });
+
+    // Capture console.log output and redirect it to the output area
+    (function() {
+      var originalLog = console.log;
+      console.log = function(message) {
+        document.getElementById("consoleOutput").textContent += message + "\n";
+        originalLog.apply(console, arguments);
+      };
+    })();
+
+    // Run code when button is clicked
+    document.getElementById("runButton").addEventListener("click", function() {
+      var code = editor.getValue(); // Get the code from the editor
+      var validationMessage = '';
+
+      try {
+        // Clear previous output and validation
+        document.getElementById("consoleOutput").textContent = '';
+        document.getElementById("validationResult").textContent = '';
+
+        // Execute JavaScript code using eval
+        eval(code);
+
+        // Validation check
+        let expectedResult = 11; // Expected output (x + y)
+        let actualResult = eval(code.replace('console.log(z)', 'z')); // Execute the expression only
+
+        // Check if output is correct
+        if (actualResult === expectedResult) {
+          validationMessage += "Correct output: " + actualResult + "\n";
+        } else {
+          validationMessage += "Incorrect output. Expected: " + expectedResult + ", got: " + actualResult + "\n";
+        }
+
+        // Check if variables x and y are used
+        if (code.includes('x') && code.includes('y')) {
+          validationMessage += "Variables x and y are used correctly.\n";
+        } else {
+          validationMessage += "Variables x and y are not used correctly.\n";
+        }
+
+        // Display the validation result
+        document.getElementById("validationResult").textContent = validationMessage;
+      } catch (error) {
+        // If an error occurs, display the error message
+        document.getElementById("consoleOutput").textContent = "Error: " + error.message;
+      }
+    });
+  </script>
+
+</body>
+</html>
